@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2 class="mb-4">Project & Resource Management Dashboard</h2>
+
+
+<!-- KPI Cards -->
+
+<div class="row">
+
+    <div class="col-md-3 mb-3">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6>Total Employees</h6>
+                <h2 id="totalEmployees">0</h2>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-md-3 mb-3">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6>Total Clients</h6>
+                <h2 id="totalClients">0</h2>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-md-3 mb-3">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6>Total Projects</h6>
+                <h2 id="totalProjects">0</h2>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-md-3 mb-3">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6>Active Projects</h6>
+                <h2 id="activeProjects">0</h2>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<div class="row">
+
+    <div class="col-md-6 mb-3">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6>Overallocated Employees</h6>
+                <h2 id="overallocatedEmployees">0</h2>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-md-6 mb-3">
+        <div class="card text-center shadow-sm">
+            <div class="card-body">
+                <h6>Total Project Budget</h6>
+                <h2>₹<span id="totalBudget">0</span></h2>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- Project Status -->
+
+<div class="card mt-4 shadow-sm">
+
+    <div class="card-body">
+
+        <h4>Project Status</h4>
+
+        <table class="table table-bordered mt-3">
+
+            <thead class="table-dark">
+
+                <tr>
+                    <th>Status</th>
+                    <th>Number of Projects</th>
+                </tr>
+
+            </thead>
+
+            <tbody id="projectStatusTable">
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+
+<!-- Resource Utilization -->
+
+<div class="card mt-4 shadow-sm">
+
+    <div class="card-body">
+
+        <h4>Resource Utilization</h4>
+
+        <div id="resourceTable">
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+async function loadDashboard() {
+
+    try {
+
+        const [
+            employeeResponse,
+            clientResponse,
+            projectResponse,
+            resourceResponse
+        ] = await Promise.all([
+
+            fetch('/api/employees/'),
+            fetch('/api/clients/'),
+            fetch('/api/projects/'),
+            fetch('/api/resources/')
+
+        ]);
+
+
+        const employees =
+            await employeeResponse.json();
+
+        const clients =
+            await clientResponse.json();
+
+        const projects =
+            await projectResponse.json();
+
+        const resources =
+            await resourceResponse.json();
+
+
+        /* -----------------------------
+           KPI COUNTS
+        ----------------------------- */
+
+        document.getElementById(
+            'totalEmployees'
+        ).innerText = employees.length;
+
+
+        document.getElementById(
+            'totalClients'
+        ).innerText = clients.length;
+
+
+        document.getElementById(
+            'totalProjects'
+        ).innerText = projects.length;
+
+
+        const activeProjects =
+            projects.filter(
+                p => p.status === 'In Progress'
+            ).length;
+
+
+        document.getElementById(
+            'activeProjects'
+        ).innerText = activeProjects;
+
+
+        /* -----------------------------
+           TOTAL PROJECT BUDGET
+        ----------------------------- */
+
+        const totalBudget =
+            projects.reduce(
+                (sum, project) =>
+                    sum + parseFloat(project.budget || 0),
+                0
+            );
+
+
+        document.getElementById(
+            'totalBudget'
+        ).innerText =
+            totalBudget.toLocaleString('en-IN');
+
+
+        /* -----------------------------
+           PROJECT STATUS
+        ----------------------------- */
+
+        const statusCounts = {};
+
+
+        projects.forEach(project => {
+
+            if (!statusCounts[project.status]) {
+                statusCounts[project.status] = 0;
+            }
+
+            statusCounts[project.status]++;
+
+        });
+
+
+        const statusTable =
+            document.getElementById(
+                'projectStatusTable'
+            );
+
+        statusTable.innerHTML = '';
+
+
+        Object.entries(statusCounts)
+            .forEach(([status, count]) => {
+
+                statusTable.innerHTML += `
+                    <tr>
+                        <td>${status}</td>
+                        <td>${count}</td>
+                    </tr>
+                `;
+
+            });
+
+
+        /* -----------------------------
+           RESOURCE UTILIZATION
+        ----------------------------- */
+
+        const employeeTotals = {};
+
+
+        resources.forEach(resource => {
+
+            const employeeId =
+                resource.employee;
+
+            const allocation =
+                parseFloat(
+                    resource.allocation_percentage
+                );
+
+
+            if (!employeeTotals[employeeId]) {
+
+                employeeTotals[employeeId] = {
+                    name: resource.employee_name,
+                    total: 0
+                };
+
+            }
+
+            employeeTotals[employeeId].total += allocation;
+
+        });
+
+
+        let overallocatedCount = 0;
+
+        const resourceTable =
+            document.getElementById(
+                'resourceTable'
+            );
+
+        resourceTable.innerHTML = '';
+
+
+        Object.values(employeeTotals)
+            .forEach(employee => {
+
+                let status;
+                let color;
+
+                if (employee.total > 100) {
+
+                    status = 'Overallocated';
+                    color = 'bg-danger';
+
+                    overallocatedCount++;
+
+                } else if (employee.total === 100) {
+
+                    status = 'Fully Allocated';
+                    color = 'bg-warning';
+
+                } else {
+
+                    status = 'Available';
+                    color = 'bg-success';
+
+                }
+
+
+                resourceTable.innerHTML += `
+
+                    <div class="mb-3">
+
+                        <div class="d-flex justify-content-between">
+
+                            <strong>
+                                ${employee.name}
+                            </strong>
+
+                            <span>
+                                ${employee.total}%
+                                <span class="badge ${color}">
+                                    ${status}
+                                </span>
+                            </span>
+
+                        </div>
+
+
+                        <div class="progress">
+
+                            <div
+                                class="progress-bar ${color}"
+                                style="width:
+                                    ${Math.min(employee.total, 100)}%"
+                            >
+                                ${employee.total}%
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            });
+
+
+        document.getElementById(
+            'overallocatedEmployees'
+        ).innerText = overallocatedCount;
+
+
+    } catch (error) {
+
+        console.error(
+            'Dashboard Error:',
+            error
+        );
+
+    }
+
+}
+
+
+loadDashboard();
+
+</script>
+
+{% endblock %}

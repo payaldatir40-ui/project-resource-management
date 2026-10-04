@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2 class="mb-4">Project Management</h2>
+
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <h5 id="projectFormTitle">Add Project</h5>
+
+        <form id="projectForm">
+
+            <input type="hidden" id="projectId">
+
+            <div class="row">
+
+                <div class="col-md-4 mb-3">
+                    <label>Project Code</label>
+                    <input id="project_code"
+                           class="form-control"
+                           required>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label>Project Name</label>
+                    <input id="project_name"
+                           class="form-control"
+                           required>
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label>Client</label>
+
+                    <select id="project_client"
+                            class="form-control"
+                            required>
+                    </select>
+
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label>Start Date</label>
+                    <input type="date"
+                           id="start_date"
+                           class="form-control"
+                           required>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label>End Date</label>
+                    <input type="date"
+                           id="end_date"
+                           class="form-control"
+                           required>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label>Budget</label>
+                    <input type="number"
+                           id="budget"
+                           class="form-control"
+                           required>
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label>Status</label>
+
+                    <select id="project_status"
+                            class="form-control">
+
+                        <option value="Planned">
+                            Planned
+                        </option>
+
+                        <option value="In Progress">
+                            In Progress
+                        </option>
+
+                        <option value="Completed">
+                            Completed
+                        </option>
+
+                        <option value="On Hold">
+                            On Hold
+                        </option>
+
+                        <option value="Cancelled">
+                            Cancelled
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+            <button class="btn btn-success">
+                Save
+            </button>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    onclick="resetProjectForm()">
+                Clear
+            </button>
+
+        </form>
+
+    </div>
+</div>
+
+
+<table class="table table-bordered table-hover">
+
+    <thead class="table-dark">
+
+        <tr>
+            <th>Code</th>
+            <th>Project</th>
+            <th>Client</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Budget</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+
+    </thead>
+
+    <tbody id="projectTable"></tbody>
+
+</table>
+
+
+<script>
+
+async function loadClientsDropdown() {
+
+    const clients =
+        await apiRequest('/api/clients/');
+
+    const select =
+        document.getElementById('project_client');
+
+    select.innerHTML =
+        '<option value="">Select Client</option>';
+
+    clients.forEach(client => {
+
+        select.innerHTML += `
+            <option value="${client.id}">
+                ${client.company_name}
+            </option>
+        `;
+    });
+}
+
+
+async function loadProjects() {
+
+    const projects =
+        await apiRequest('/api/projects/');
+
+    const table =
+        document.getElementById('projectTable');
+
+    table.innerHTML = '';
+
+    projects.forEach(project => {
+
+        table.innerHTML += `
+            <tr>
+
+                <td>${project.project_code}</td>
+
+                <td>${project.project_name}</td>
+
+                <td>${project.client_name}</td>
+
+                <td>${project.start_date}</td>
+
+                <td>${project.end_date}</td>
+
+                <td>
+                    ₹${Number(
+                        project.budget
+                    ).toLocaleString('en-IN')}
+                </td>
+
+                <td>${project.status}</td>
+
+                <td>
+
+                    <button
+                        class="btn btn-sm btn-warning"
+                        onclick='editProject(${JSON.stringify(project)})'>
+                        Edit
+                    </button>
+
+                    <button
+                        class="btn btn-sm btn-danger"
+                        onclick="deleteProject(${project.id})">
+                        Delete
+                    </button>
+
+                </td>
+
+            </tr>
+        `;
+    });
+}
+
+
+document.getElementById('projectForm')
+.addEventListener('submit', async function(event) {
+
+    event.preventDefault();
+
+    const id =
+        document.getElementById('projectId').value;
+
+    const data = {
+
+        project_code:
+            document.getElementById('project_code').value,
+
+        project_name:
+            document.getElementById('project_name').value,
+
+        client:
+            document.getElementById('project_client').value,
+
+        start_date:
+            document.getElementById('start_date').value,
+
+        end_date:
+            document.getElementById('end_date').value,
+
+        budget:
+            document.getElementById('budget').value,
+
+        status:
+            document.getElementById('project_status').value
+    };
+
+
+    try {
+
+        await apiRequest(
+            id
+                ? `/api/projects/${id}/`
+                : '/api/projects/',
+            {
+                method: id ? 'PATCH' : 'POST',
+                body: JSON.stringify(data)
+            }
+        );
+
+        resetProjectForm();
+
+        await loadProjects();
+
+        alert('Project saved successfully.');
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert('Error saving project.');
+
+    }
+});
+
+
+function editProject(project) {
+
+    document.getElementById('projectId').value =
+        project.id;
+
+    document.getElementById('project_code').value =
+        project.project_code;
+
+    document.getElementById('project_name').value =
+        project.project_name;
+
+    document.getElementById('project_client').value =
+        project.client;
+
+    document.getElementById('start_date').value =
+        project.start_date;
+
+    document.getElementById('end_date').value =
+        project.end_date;
+
+    document.getElementById('budget').value =
+        project.budget;
+
+    document.getElementById('project_status').value =
+        project.status;
+
+    document.getElementById('projectFormTitle')
+        .innerText = 'Edit Project';
+
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+
+
+async function deleteProject(id) {
+
+    if (!confirm(
+        'Are you sure you want to delete this project?'
+    )) {
+        return;
+    }
+
+    try {
+
+        await apiRequest(
+            `/api/projects/${id}/`,
+            {
+                method: 'DELETE'
+            }
+        );
+
+        await loadProjects();
+
+        alert('Project deleted successfully.');
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert('Error deleting project.');
+
+    }
+}
+
+
+function resetProjectForm() {
+
+    document.getElementById('projectForm').reset();
+
+    document.getElementById('projectId').value = '';
+
+    document.getElementById('projectFormTitle')
+        .innerText = 'Add Project';
+}
+
+
+async function initializeProjects() {
+
+    await loadClientsDropdown();
+
+    await loadProjects();
+
+}
+
+
+initializeProjects();
+
+</script>
+
+{% endblock %}

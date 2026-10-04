@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables / secrets
+.env
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# SQLite local databases
+*.sqlite3
+
+# Test / coverage files
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Django generated files
+staticfiles/
+media/

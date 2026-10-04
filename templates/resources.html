@@ -1,0 +1,468 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h2 class="mb-4">Resource Management</h2>
+
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <h5 id="resourceFormTitle">
+            Add Resource Allocation
+        </h5>
+
+        <form id="resourceForm">
+
+            <input type="hidden" id="resourceId">
+
+            <div class="row">
+
+                <div class="col-md-4 mb-3">
+
+                    <label>Employee</label>
+
+                    <select id="resource_employee"
+                            class="form-control"
+                            required>
+                    </select>
+
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label>Project</label>
+
+                    <select id="resource_project"
+                            class="form-control"
+                            required>
+                    </select>
+
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label>Role</label>
+
+                    <select id="resource_role"
+                            class="form-control">
+
+                        <option value="Developer">
+                            Developer
+                        </option>
+
+                        <option value="Data Analyst">
+                            Data Analyst
+                        </option>
+
+                        <option value="Data Engineer">
+                            Data Engineer
+                        </option>
+
+                        <option value="BI Developer">
+                            BI Developer
+                        </option>
+
+                        <option value="Tech Lead">
+                            Tech Lead
+                        </option>
+
+                        <option value="Business Analyst">
+                            Business Analyst
+                        </option>
+
+                        <option value="QA Engineer">
+                            QA Engineer
+                        </option>
+
+                        <option value="Technical Consultant">
+                            Technical Consultant
+                        </option>
+
+                        <option value="Project Manager">
+                            Project Manager
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label>Allocation %</label>
+
+                    <input
+                        type="number"
+                        id="allocation_percentage"
+                        class="form-control"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        required>
+
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label>Start Date</label>
+
+                    <input
+                        type="date"
+                        id="allocation_start_date"
+                        class="form-control"
+                        required>
+
+                </div>
+
+                <div class="col-md-4 mb-3">
+
+                    <label>End Date</label>
+
+                    <input
+                        type="date"
+                        id="allocation_end_date"
+                        class="form-control"
+                        required>
+
+                </div>
+
+            </div>
+
+            <button class="btn btn-success">
+                Save
+            </button>
+
+            <button type="button"
+                    class="btn btn-secondary"
+                    onclick="resetResourceForm()">
+                Clear
+            </button>
+
+        </form>
+
+    </div>
+</div>
+
+
+<table class="table table-bordered table-hover">
+
+    <thead class="table-dark">
+
+        <tr>
+            <th>Employee</th>
+            <th>Project</th>
+            <th>Role</th>
+            <th>Allocation</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Actions</th>
+        </tr>
+
+    </thead>
+
+    <tbody id="resourceTable"></tbody>
+
+</table>
+
+
+<script>
+
+async function loadResourceDropdowns() {
+
+    const [employees, projects] =
+        await Promise.all([
+
+            apiRequest('/api/employees/'),
+            apiRequest('/api/projects/')
+
+        ]);
+
+
+    const employeeSelect =
+        document.getElementById(
+            'resource_employee'
+        );
+
+    employeeSelect.innerHTML =
+        '<option value="">Select Employee</option>';
+
+
+    employees.forEach(employee => {
+
+        employeeSelect.innerHTML += `
+
+            <option value="${employee.id}">
+
+                ${employee.first_name}
+                ${employee.last_name}
+
+            </option>
+        `;
+    });
+
+
+    const projectSelect =
+        document.getElementById(
+            'resource_project'
+        );
+
+    projectSelect.innerHTML =
+        '<option value="">Select Project</option>';
+
+
+    projects.forEach(project => {
+
+        projectSelect.innerHTML += `
+
+            <option value="${project.id}">
+
+                ${project.project_code}
+                -
+                ${project.project_name}
+
+            </option>
+        `;
+    });
+}
+
+
+async function loadResources() {
+
+    const resources =
+        await apiRequest('/api/resources/');
+
+    const table =
+        document.getElementById('resourceTable');
+
+    table.innerHTML = '';
+
+    resources.forEach(resource => {
+
+        table.innerHTML += `
+
+            <tr>
+
+                <td>
+                    ${resource.employee_name}
+                </td>
+
+                <td>
+                    ${resource.project_name}
+                </td>
+
+                <td>
+                    ${resource.role}
+                </td>
+
+                <td>
+                    ${resource.allocation_percentage}%
+                </td>
+
+                <td>
+                    ${resource.allocation_start_date}
+                </td>
+
+                <td>
+                    ${resource.allocation_end_date}
+                </td>
+
+                <td>
+
+                    <button
+                        class="btn btn-sm btn-warning"
+                        onclick='editResource(${JSON.stringify(resource)})'>
+                        Edit
+                    </button>
+
+                    <button
+                        class="btn btn-sm btn-danger"
+                        onclick="deleteResource(${resource.id})">
+                        Delete
+                    </button>
+
+                </td>
+
+            </tr>
+        `;
+    });
+}
+
+
+document.getElementById('resourceForm')
+.addEventListener('submit', async function(event) {
+
+    event.preventDefault();
+
+    const id =
+        document.getElementById('resourceId').value;
+
+    const data = {
+
+        employee:
+            document.getElementById(
+                'resource_employee'
+            ).value,
+
+        project:
+            document.getElementById(
+                'resource_project'
+            ).value,
+
+        role:
+            document.getElementById(
+                'resource_role'
+            ).value,
+
+        allocation_percentage:
+            document.getElementById(
+                'allocation_percentage'
+            ).value,
+
+        allocation_start_date:
+            document.getElementById(
+                'allocation_start_date'
+            ).value,
+
+        allocation_end_date:
+            document.getElementById(
+                'allocation_end_date'
+            ).value
+    };
+
+
+    try {
+
+        await apiRequest(
+            id
+                ? `/api/resources/${id}/`
+                : '/api/resources/',
+            {
+                method: id ? 'PATCH' : 'POST',
+                body: JSON.stringify(data)
+            }
+        );
+
+        resetResourceForm();
+
+        await loadResources();
+
+        alert(
+            'Resource allocation saved successfully.'
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            'Error saving resource allocation.'
+        );
+
+    }
+});
+
+
+function editResource(resource) {
+
+    document.getElementById('resourceId').value =
+        resource.id;
+
+    document.getElementById('resource_employee').value =
+        resource.employee;
+
+    document.getElementById('resource_project').value =
+        resource.project;
+
+    document.getElementById('resource_role').value =
+        resource.role;
+
+    document.getElementById(
+        'allocation_percentage'
+    ).value =
+        resource.allocation_percentage;
+
+    document.getElementById(
+        'allocation_start_date'
+    ).value =
+        resource.allocation_start_date;
+
+    document.getElementById(
+        'allocation_end_date'
+    ).value =
+        resource.allocation_end_date;
+
+    document.getElementById('resourceFormTitle')
+        .innerText = 'Edit Resource Allocation';
+
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+
+
+async function deleteResource(id) {
+
+    if (!confirm(
+        'Delete this resource allocation?'
+    )) {
+        return;
+    }
+
+    try {
+
+        await apiRequest(
+            `/api/resources/${id}/`,
+            {
+                method: 'DELETE'
+            }
+        );
+
+        await loadResources();
+
+        alert(
+            'Resource allocation deleted.'
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            'Error deleting resource allocation.'
+        );
+
+    }
+}
+
+
+function resetResourceForm() {
+
+    document.getElementById(
+        'resourceForm'
+    ).reset();
+
+    document.getElementById(
+        'resourceId'
+    ).value = '';
+
+    document.getElementById(
+        'resourceFormTitle'
+    ).innerText = 'Add Resource Allocation';
+}
+
+
+async function initializeResources() {
+
+    await loadResourceDropdowns();
+
+    await loadResources();
+
+}
+
+
+initializeResources();
+
+</script>
+
+{% endblock %}
